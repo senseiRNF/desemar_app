@@ -15,12 +15,17 @@ class SPrefs {
       await sPrefs.setStringList(
         'auth',
         [
-          auth.userId!.toString(),
+          '${auth.idPegawai!}',
+          auth.nik!,
+          auth.namaPegawai!,
           auth.username!,
-          auth.name!,
-          auth.nip!,
-          auth.position!,
-          auth.workUnit!
+          auth.password!,
+          auth.jenisKelamin!,
+          auth.jabatan!,
+          '${auth.tanggalMasuk!}',
+          auth.status!,
+          auth.photo!,
+          '${auth.hakAkses!}',
         ],
       ).then((_) {
         result = true;
@@ -39,16 +44,33 @@ class SPrefs {
 
       if(sPrefList != null && sPrefList!.isNotEmpty) {
         auth = AuthClass(
-          userId: int.parse(sPrefList![0]),
-          username: sPrefList![1],
-          name: sPrefList![2],
-          nip: sPrefList![3],
-          position: sPrefList![4],
-          workUnit: sPrefList![5],
+          idPegawai: int.parse(sPrefList![0]),
+          nik: sPrefList![1],
+          namaPegawai: sPrefList![2],
+          username: sPrefList![3],
+          password: sPrefList![4],
+          jenisKelamin: sPrefList![5],
+          jabatan: sPrefList![6],
+          tanggalMasuk: DateTime.parse(sPrefList![7]),
+          status: sPrefList![8],
+          photo: sPrefList![9],
+          hakAkses: int.parse(sPrefList![10]),
         );
       }
     });
 
     return auth;
+  }
+
+  Future<bool> deleteAuth() async {
+    bool result = false;
+
+    await init().then((sPrefs) async {
+      await sPrefs.remove('auth').then((_) {
+        result = true;
+      });
+    });
+
+    return result;
   }
 }

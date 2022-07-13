@@ -1,4 +1,6 @@
+import 'package:desemar_app/backend/functions/dialog_functions.dart';
 import 'package:desemar_app/backend/functions/route_functions.dart';
+import 'package:desemar_app/backend/functions/services_api/auth_services.dart';
 import 'package:desemar_app/backend/variables/global.dart';
 import 'package:desemar_app/frontend/home_screen.dart';
 import 'package:flutter/material.dart';
@@ -89,8 +91,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 20.0,
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        RouteFunctions(context: context).replaceScreen(const HomeScreen());
+                      onPressed: () async {
+                        await AuthServices().loginUser(usernameController.text, passwordController.text).then((dioResult) {
+                          if(dioResult) {
+                            RouteFunctions(context: context).replaceScreen(const HomeScreen());
+                          } else {
+                            DialogFunctions(context: context, message: 'Gagal masuk, username & password tidak sesuai, silahkan coba lagi').okDialog(() {
+
+                            });
+                          }
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         primary: GlobalColor.primary,

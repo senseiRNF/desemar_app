@@ -1,5 +1,9 @@
+import 'package:desemar_app/backend/class_data/api/absence_response.dart';
 import 'package:desemar_app/backend/class_data/home_menu_class.dart';
+import 'package:desemar_app/backend/functions/dialog_functions.dart';
 import 'package:desemar_app/backend/functions/route_functions.dart';
+import 'package:desemar_app/backend/functions/services_api/absence_services.dart';
+import 'package:desemar_app/backend/functions/shared_preferences.dart';
 import 'package:desemar_app/backend/variables/global.dart';
 import 'package:desemar_app/frontend/about_screen.dart';
 import 'package:desemar_app/frontend/absence_screen.dart';
@@ -16,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  AbsenceResponse? absenceResponse;
+
   String? name;
 
   List<HomeMenuClass> homeMenuClass = [];
@@ -60,6 +66,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ];
     });
+
+    initLoad();
+  }
+
+  void initLoad() async {
+    await SPrefs().readAuth().then((auth) async {
+      if(auth != null) {
+        setState(() {
+          name = auth.namaPegawai;
+        });
+
+        if(auth.nik != null) {
+          await AbsenceServices().readAbsenceByNIK(auth.nik!).then((dioResult) {
+            if(dioResult != null) {
+              setState(() {
+                absenceResponse = dioResult;
+              });
+            }
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -68,11 +96,26 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: GlobalColor.primary,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        title: SizedBox(
+          width: 150.0,
+          child: Image.asset(
+            '${GlobalString.imagePath}/logo_2.png',
+            fit: BoxFit.fitWidth,
+          ),
+        ),
         actions: [
           PopupMenuButton(
             onSelected: (result) {
               if(result == 'logout') {
-                RouteFunctions(context: context).replaceScreen(const SplashScreen());
+                DialogFunctions(context: context, message: 'Keluar sesi aplikasi, Anda yakin?').optionDialog(() async {
+                  await SPrefs().deleteAuth().then((result) {
+                    if(result) {
+                      RouteFunctions(context: context).replaceScreen(const SplashScreen());
+                    }
+                  });
+                }, () {
+
+                });
               }
             },
             itemBuilder: (BuildContext menuContext) => <PopupMenuEntry> [
@@ -173,40 +216,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const Text(
-                            '25',
-                            style: TextStyle(
+                          absenceResponse != null && absenceResponse!.data != null && absenceResponse!.data!.isNotEmpty ?
+                          Text(
+                            absenceResponse!.data![0].hadir ?? '0',
+                            style: const TextStyle(
                               fontStyle: FontStyle.italic,
                             ),
                             textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(
-                            width: 50.0,
-                            height: 50.0,
-                            child: Image.asset(
-                              '${GlobalString.imagePath}/with-permission-icon.png',
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 10.0,
-                          ),
+                          ) :
                           const Text(
-                            'Izin',
-                            style: TextStyle(
-                              fontStyle: FontStyle.italic,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const Text(
-                            '2',
+                            '0',
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
                             ),
@@ -237,6 +256,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          absenceResponse != null && absenceResponse!.data != null && absenceResponse!.data!.isNotEmpty ?
+                          Text(
+                            absenceResponse!.data![0].sakit ?? '0',
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                            ),
+                            textAlign: TextAlign.center,
+                          ) :
                           const Text(
                             '0',
                             style: TextStyle(
@@ -269,8 +296,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          absenceResponse != null && absenceResponse!.data != null && absenceResponse!.data!.isNotEmpty ?
+                          Text(
+                            absenceResponse!.data![0].alpha ?? '0',
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                            ),
+                            textAlign: TextAlign.center,
+                          ) :
                           const Text(
-                            '3',
+                            '0',
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
                             ),

@@ -1,3 +1,4 @@
+import 'package:desemar_app/backend/functions/shared_preferences.dart';
 import 'package:desemar_app/backend/variables/global.dart';
 import 'package:flutter/material.dart';
 
@@ -16,6 +17,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+
+    initLoad();
+  }
+
+  void initLoad() async {
+    await SPrefs().readAuth().then((authResult) {
+      if(authResult != null) {
+        setState(() {
+          name = authResult.namaPegawai;
+          nip = authResult.nik;
+          position = authResult.jabatan;
+        });
+      }
+    });
   }
 
   @override

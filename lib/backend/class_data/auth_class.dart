@@ -1,19 +1,27 @@
 class AuthClass {
-  int? userId;
+  int? idPegawai;
+  String? nik;
+  String? namaPegawai;
   String? username;
   String? password;
-  String? name;
-  String? nip;
-  String? position;
-  String? workUnit;
+  String? jenisKelamin;
+  String? jabatan;
+  DateTime? tanggalMasuk;
+  String? status;
+  String? photo;
+  int? hakAkses;
 
   AuthClass({
-    this.userId,
+    this.idPegawai,
+    this.nik,
+    this.namaPegawai,
     this.username,
     this.password,
-    this.name,
-    this.nip,
-    this.position,
-    this.workUnit,
+    this.jenisKelamin,
+    this.jabatan,
+    this.tanggalMasuk,
+    this.status,
+    this.photo,
+    this.hakAkses,
   });
 }
