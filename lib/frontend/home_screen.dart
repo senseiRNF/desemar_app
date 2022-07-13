@@ -11,6 +11,7 @@ import 'package:desemar_app/frontend/payroll_screen.dart';
 import 'package:desemar_app/frontend/profile_screen.dart';
 import 'package:desemar_app/frontend/splash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -52,7 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'Absensi',
           onPress: () {
             RouteFunctions(context: context).moveScreen(const AbsenceScreen(), (callback) {
-
+              if(callback != null && callback) {
+                initLoad();
+              }
             });
           },
         ),
@@ -78,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         if(auth.nik != null) {
-          await AbsenceServices().readAbsenceByNIK(auth.nik!).then((dioResult) {
+          await AbsenceServices().readAbsenceByNIK(auth.nik!, DateFormat('MMyyyy').format(DateTime.now())).then((dioResult) {
             if(dioResult != null) {
               setState(() {
                 absenceResponse = dioResult;

@@ -1,4 +1,9 @@
+import 'package:desemar_app/backend/class_data/api/absence_response.dart';
+import 'package:desemar_app/backend/class_data/auth_class.dart';
+import 'package:desemar_app/backend/functions/dialog_functions.dart';
 import 'package:desemar_app/backend/functions/route_functions.dart';
+import 'package:desemar_app/backend/functions/services_api/absence_services.dart';
+import 'package:desemar_app/backend/functions/shared_preferences.dart';
 import 'package:desemar_app/backend/variables/global.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +16,8 @@ class AbsenceScreen extends StatefulWidget {
 }
 
 class _AbsenceScreenState extends State<AbsenceScreen> {
+  AuthClass? authClass;
+
   TextEditingController nameController = TextEditingController();
   TextEditingController nipController = TextEditingController();
   TextEditingController positionController = TextEditingController();
@@ -18,12 +25,54 @@ class _AbsenceScreenState extends State<AbsenceScreen> {
 
   DateTime dateTime = DateTime.now();
 
+  int? recapAbsenceId;
+  int presentCount = 0;
+
+  bool isRecapReady = false;
+
   @override
   void initState() {
     super.initState();
 
     setState(() {
       dateController.text = DateFormat('dd-MM-yyyy').format(dateTime);
+    });
+
+    initLoad();
+  }
+
+  void initLoad() async {
+    await SPrefs().readAuth().then((auth) async {
+      if(auth != null && auth.idPegawai != null) {
+        setState(() {
+          authClass = auth;
+
+          nameController.text = auth.namaPegawai ?? '';
+          nipController.text = auth.nik ?? '';
+          positionController.text = auth.jabatan ?? '';
+        });
+
+        await AbsenceServices().readAbsenceByNIK(auth.nik!, DateFormat('MMyyyy').format(DateTime.now())).then((dioResult) async {
+          AbsenceResponse? absenceResponse = dioResult;
+
+          if(absenceResponse != null && absenceResponse.data != null && absenceResponse.data!.isNotEmpty) {
+            setState(() {
+              isRecapReady = true;
+
+              recapAbsenceId = int.parse(absenceResponse.data![0].idKehadiran!);
+              presentCount = int.parse(absenceResponse.data![0].hadir!);
+            });
+
+            await AbsenceServices().readAbsenceByDate(auth.idPegawai!, DateTime.now()).then((readResult) {
+              if(readResult != null && readResult.data != null && readResult.data!.isNotEmpty) {
+                DialogFunctions(context: context, message: 'Anda sudah melakukan absensi hari ini').okDialog(() {
+                  RouteFunctions(context: context).backOffScreen(null);
+                });
+              }
+            });
+          }
+        });
+      }
     });
   }
 
@@ -67,6 +116,7 @@ class _AbsenceScreenState extends State<AbsenceScreen> {
                       ),
                       TextField(
                         controller: nameController,
+                        readOnly: true,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
                           label: Text(
@@ -79,6 +129,7 @@ class _AbsenceScreenState extends State<AbsenceScreen> {
                       ),
                       TextField(
                         controller: nipController,
+                        readOnly: true,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
                           label: Text(
@@ -90,6 +141,7 @@ class _AbsenceScreenState extends State<AbsenceScreen> {
                         height: 10.0,
                       ),
                       TextField(
+                        readOnly: true,
                         controller: positionController,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -131,8 +183,51 @@ class _AbsenceScreenState extends State<AbsenceScreen> {
                         height: 10.0,
                       ),
                       ElevatedButton(
-                        onPressed: () {
-                          RouteFunctions(context: context).backOffScreen(null);
+                        onPressed: () async {
+                          DialogFunctions(context: context, message: 'Simpan absensi, Anda yakin?').optionDialog(() async {
+                            if(isRecapReady) {
+                              await AbsenceServices().updateRecapAbsence(recapAbsenceId!, presentCount + 1).then((dioResult) async {
+                                if(dioResult) {
+                                  await AbsenceServices().writeAbsence(
+                                    DateTime.now(),
+                                    AuthClass(
+                                      idPegawai: authClass!.idPegawai,
+                                    ),
+                                  ).then((writeResult) {
+                                    if(writeResult) {
+                                      RouteFunctions(context: context).backOffScreen(true);
+                                    }
+                                  });
+                                }
+                              });
+                            } else {
+                              await AbsenceServices().writeRecapAbsence(
+                                DateTime.now(),
+                                AuthClass(
+                                  nik: authClass!.nik,
+                                  namaPegawai: authClass!.namaPegawai,
+                                  jenisKelamin: authClass!.jenisKelamin,
+                                  jabatan: authClass!.jabatan,
+                                ),
+                                1,
+                              ).then((dioResult) async {
+                                if(dioResult) {
+                                  await AbsenceServices().writeAbsence(
+                                    DateTime.now(),
+                                    AuthClass(
+                                      idPegawai: authClass!.idPegawai,
+                                    ),
+                                  ).then((writeResult) {
+                                    if(writeResult) {
+                                      RouteFunctions(context: context).backOffScreen(true);
+                                    }
+                                  });
+                                }
+                              });
+                            }
+                          }, () {
+
+                          });
                         },
                         style: ElevatedButton.styleFrom(
                           primary: GlobalColor.primary,

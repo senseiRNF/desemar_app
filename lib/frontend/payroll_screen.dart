@@ -1,7 +1,16 @@
-import 'package:desemar_app/backend/class_data/payroll_class.dart';
+import 'dart:io';
+
+import 'package:desemar_app/backend/functions/dialog_functions.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:desemar_app/backend/class_data/api/honor_response.dart';
+import 'package:desemar_app/backend/functions/services_api/honor_services.dart';
+import 'package:desemar_app/backend/functions/shared_preferences.dart';
 import 'package:desemar_app/backend/variables/global.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class PayrollScreen extends StatefulWidget {
   const PayrollScreen({Key? key}) : super(key: key);
@@ -11,40 +20,135 @@ class PayrollScreen extends StatefulWidget {
 }
 
 class _PayrollScreenState extends State<PayrollScreen> {
-  List<PayrollClass> payrollList = [];
+  List<HonorResponseData> payrollList = [];
 
   @override
   void initState() {
     super.initState();
 
-    setState(() {
-      payrollList = [
-        PayrollClass(
-          name: 'User #1',
-          position: 'Position #1',
-          date: DateTime(2022, 06, 28),
-          mainPayroll: 3000000,
-          transportPayroll: 200000,
-          lunchPayroll: 500000,
-        ),
-        PayrollClass(
-          name: 'User #2',
-          position: 'Position #2',
-          date: DateTime(2022, 06, 29),
-          mainPayroll: 3200000,
-          transportPayroll: 210000,
-          lunchPayroll: 500000,
-        ),
-        PayrollClass(
-          name: 'User #3',
-          position: 'Position #3',
-          date: DateTime(2022, 06, 30),
-          mainPayroll: 3400000,
-          transportPayroll: 220000,
-          lunchPayroll: 500000,
-        ),
-      ];
+    initLoad();
+  }
+
+  void initLoad() async {
+    await SPrefs().readAuth().then((auth) async {
+      if(auth != null && auth.idPegawai != null) {
+        await HonorServices().readHonorByUser(auth.idPegawai!).then((dioResult) {
+          List<HonorResponseData> listTemp = [];
+
+          if(dioResult != null && dioResult.data != null) {
+            for(int i = 0; i < dioResult.data!.length; i++) {
+              listTemp.add(dioResult.data![i]);
+            }
+
+            setState(() {
+              payrollList = listTemp;
+            });
+          }
+        });
+      }
     });
+  }
+
+  void generatePDF(HonorResponseData dataResponse) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Text(
+                'Slip Gaji',
+                style: pw.TextStyle(
+                  fontSize: 20.0,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(
+                height: 20.0,
+              ),
+              pw.Divider(),
+              pw.SizedBox(
+                height: 20.0,
+              ),
+              pw.Text(
+                "Nama: ${dataResponse.namaPegawai!}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+              pw.Text(
+                "Jabatan: ${dataResponse.namaJabatan!}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+              pw.Text(
+                "Bulan: ${dataResponse.bulan!}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+              pw.Text(
+                "Gaji Pokok: Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(dataResponse.gajiPokok!))}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+              pw.Text(
+                "Transport: Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(dataResponse.tjTransport!))}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+              pw.Text(
+                "Uang Makan: Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(dataResponse.uangMakan!))}",
+                style: const pw.TextStyle(
+                  fontSize: 16.0,
+                ),
+                textAlign: pw.TextAlign.left,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    var status = await Permission.storage.status;
+
+    if(status.isGranted) {
+      final directory = Directory('/storage/emulated/0/Download');
+
+      final file = File("${directory.path}/slip_gaji.pdf");
+
+      await file.writeAsBytes(await pdf.save()).then((result) {
+        DialogFunctions(context: context, message: 'Slip gaji berhasil di unduh').okDialog(() {
+
+        });
+      });
+    } else {
+      await Permission.storage.request().then((permissionResult) async {
+        if(permissionResult.isGranted) {
+          final directory = (await getApplicationDocumentsDirectory()).path;
+
+          final file = File("$directory/example.pdf");
+          await file.writeAsBytes(await pdf.save()).then((result) {
+            DialogFunctions(context: context, message: 'Sertifikat berhasil di unduh').okDialog(() {
+
+            });
+          });
+        } else {
+          DialogFunctions(context: context, message: 'Tidak dapat melanjutkan, diperlukan izin untuk mengakses penyimpanan').okDialog(() {
+
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -81,7 +185,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ": ${payrollList[index].name ?? 'User'}",
+                          ": ${payrollList[index].namaPegawai ?? 'User'}",
                         ),
                       ),
                     ],
@@ -97,7 +201,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ": ${payrollList[index].position ?? 'Jabatan Admin'}",
+                          ": ${payrollList[index].namaJabatan ?? 'Jabatan Admin'}",
                         ),
                       ),
                     ],
@@ -107,13 +211,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       const Expanded(
                         flex: 3,
                         child: Text(
-                          'Tanggal',
+                          'Bulan',
                         ),
                       ),
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ": ${DateFormat('dd-MM-yyyy').format(payrollList[index].date!)}",
+                          ": ${payrollList[index].bulan ?? 'Bulan'}",
                         ),
                       ),
                     ],
@@ -129,7 +233,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ': Rp.${NumberFormat('#,###', 'en_ID').format(payrollList[index].mainPayroll ?? 0).replaceAll(',', '.')},-',
+                          ': Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(payrollList[index].gajiPokok ?? '0')).replaceAll(',', '.')},-',
                         ),
                       ),
                     ],
@@ -145,7 +249,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ': Rp.${NumberFormat('#,###', 'en_ID').format(payrollList[index].transportPayroll ?? 0).replaceAll(',', '.')},-',
+                          ': Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(payrollList[index].tjTransport ?? '0')).replaceAll(',', '.')},-',
                         ),
                       ),
                     ],
@@ -161,7 +265,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Expanded(
                         flex: 5,
                         child: Text(
-                          ': Rp.${NumberFormat('#,###', 'en_ID').format(payrollList[index].lunchPayroll ?? 0).replaceAll(',', '.')},-',
+                          ': Rp.${NumberFormat('#,###', 'en_ID').format(int.parse(payrollList[index].uangMakan ?? '0')).replaceAll(',', '.')},-',
                         ),
                       ),
                     ],
@@ -171,7 +275,11 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () {
+                      DialogFunctions(context: context, message: 'Mengunduh laporan menjadi PDF, Anda yakin?').optionDialog(() {
+                        generatePDF(payrollList[index]);
+                      }, () {
 
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       primary: GlobalColor.primary,
